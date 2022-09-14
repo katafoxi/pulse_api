@@ -15,7 +15,7 @@ services:
       dockerfile: dockerfile
     image: app_celery
     container_name: 'app_celery'
-    command:  ['celery',  '--app=main', 'beat', '--loglevel=INFO']
+    command:  ['celery',  '--app=poster', 'beat', '--loglevel=INFO']
     environment:
 #      - BROKER_URL=amqp://admin:mypass@rabbitmq:5672//
 #      - RESULT_BACKEND=redis://redis:6379/0
