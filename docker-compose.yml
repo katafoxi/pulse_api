@@ -1,0 +1,45 @@
+version: '3'
+
+services:
+  redis:
+    image: redis
+    restart: always
+    container_name: 'app_redis'
+    command: redis-server
+    ports:
+      - '6379:6379'
+
+  celery:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: app_celery
+    container_name: 'app_celery'
+    command:  ['celery',  '--app=main', 'beat', '--loglevel=INFO']
+    environment:
+#      - BROKER_URL=amqp://admin:mypass@rabbitmq:5672//
+#      - RESULT_BACKEND=redis://redis:6379/0
+      - C_FORCE_ROOT=true
+    volumes:
+      - .:/app/
+
+    depends_on:
+      - redis
+      - rabbitmq
+
+
+  rabbitmq:
+      image: rabbitmq:3-management-alpine
+      hostname: rabbit
+      container_name: 'rabbitmq'
+      ports:
+        - "5672:5672"
+        - "15672:15672"
+#      environment:
+#        - RABBITMQ_DEFAULT_USER=admin
+#        - RABBITMQ_DEFAULT_PASS=mypass
+      volumes:
+        - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+        - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+
+
