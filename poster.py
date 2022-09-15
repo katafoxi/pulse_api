@@ -15,7 +15,7 @@ base_url = [
     'http://188.127.251.4:8240'
 ]
 BACKEND_URL = 'redis://app_redis:6379/1'
-BROKER_URL = 'amqp://guest@rabbitmq:5672//'
+BROKER_URL = 'pyamqp://guest@rabbitmq:5672//'
 app = Celery(
     'getter_post',
     broker=BROKER_URL,
@@ -38,17 +38,21 @@ task_queues += [Queue(name + '_tokens', max_length=2) for name, limit in rate_li
 
 app.conf.task_queues = task_queues
 
+
 # это таска будет играть роль токена
 # она никогда не будет запущена, мы просто будем забирать ее как сообщение из очереди
 @app.task
 def token():
     return 1
 
+
 # автоматически настроим выпуск токенов с нужной скоростью
-@app.on_after_configure.connect
+# @app.on_after_configure.connect
+@app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
     for name, limit in rate_limits.items():
-        sender.add_periodic_task(60 / limit, token.signature(queue=name + '_tokens'))
+        app.add_periodic_task(60 / limit, token.signature(queue=name + '_tokens'), name=name + '_tokens')
+
 
 # функция для взятия токена из очереди
 def rate_limit(task_group):
@@ -82,7 +86,7 @@ def get_post_mirror_api(self, post_id):
     return response.json()
 
 
-def get_rabbitmq_queue_length(queue):
+def get_rabbitmq_queue_length(queue: str) -> int:
     """
     Счетчик длины очереди в RabbitMQ
     https://stackoverflow.com/questions/17863626/retrieve-queue-length-with-celery-rabbitmq-django
@@ -91,9 +95,8 @@ def get_rabbitmq_queue_length(queue):
     """
     count = 0
     try:
-        cl = Client('rabbitmq:5672', 'guest', 'guest')
-        if cl.is_alive():
-            count = cl.get_queue_depth('/', queue)
+        cl = Client('rabbitmq:15672', 'guest', 'guest')
+        count = cl.get_queue_depth('/', queue)
     except HTTPError as e:
         print("Exception: Could not establish to rabbitmq http api: " + str(
             e) + " Check for port, proxy, username/pass configuration errors")
@@ -102,10 +105,13 @@ def get_rabbitmq_queue_length(queue):
     return count
 
 
-def get_post(post_id):
-    original_queue = get_rabbitmq_queue_length('original')
-    mirror_queue = get_rabbitmq_queue_length('mirror')
-    if original_queue > mirror_queue:
-        get_post_mirror_api.apply_async(queue='mirror', kwargs={'post_id': post_id})
+def get_post(post_id: int):
+    if type(post_id) == int:
+        original_queue = get_rabbitmq_queue_length('original')
+        mirror_queue = get_rabbitmq_queue_length('mirror')
+        if original_queue > mirror_queue:
+            return get_post_mirror_api.apply_async(queue='mirror', args=[post_id]).get()
+        else:
+            return get_post_original_api.apply_async(queue='original', args=[post_id]).get()
     else:
-        get_post_original_api.apply_async(queue='original', kwargs={'post_id': post_id})
+        return 'Uncorrect post_id number'
