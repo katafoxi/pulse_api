@@ -1,5 +1,6 @@
-# pulse_api
-Есть метод API возвращающий информацию о посте https://jsonplaceholder.typicode.com/posts/<id> где <id> это идентификатор поста.
+# Обход ограничения API
+----
+Есть метод API возвращающий информацию о посте https://jsonplaceholder.typicode.com/posts/id где id это идентификатор поста.
 
 API имеет ограничение по частоте запросов до 30 раз в минуту, а надо иметь возможность обращаться к нему в несколько раз чаще.
 
@@ -32,14 +33,11 @@ API имеет ограничение по частоте запросов до 
 docker-compose up
 
 ```
-
-Зайти в контейнер app_selery и запустить workers 
-```shell
-celery -A poster worker -Q original -n worker1@%h
-celery -A poster worker -Q mirror -n worker2@%h
-
-```
+----
+#### Запуск функции
 После того как workers запущены, открываем консоль в контейнере app_selery, запускаем Python, через импорт доступна функция poster.get_post(post_id), которая формирует запрос к ограниченному API, добавляет его в меньшую очередь ('https://jsonplaceholder.typicode.com', 'http://188.127.251.4:8240'), по результатам выполнения возращает JSON-ответ.
+
+Прототип решения https://habr.com/ru/post/494090/
 
 ```shell
 python
