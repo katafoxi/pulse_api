@@ -15,11 +15,15 @@ services:
       dockerfile: dockerfile
     image: app_celery
     container_name: 'app_celery'
-    command:  ['celery',  '--app=poster', 'beat', '--loglevel=INFO']
-#    command:  ['celery',  '--app=poster','worker', '-B', '--loglevel=INFO']
+    #    command:  ['celery',  '--app=poster', 'beat', '--loglevel=INFO']
+    #    command:  ['celery',  '--app=poster','worker', '-B', '--loglevel=INFO']
+    command: >
+      sh -c "celery --app=poster beat --loglevel=INFO &
+      celery --app=poster worker -Q original -n w1@%h &
+      celery --app=poster worker -Q mirror -n w2@%h "
     environment:
-#      - BROKER_URL=amqp://admin:mypass@rabbitmq:5672//
-#      - RESULT_BACKEND=redis://redis:6379/0
+      #      - BROKER_URL=amqp://admin:mypass@rabbitmq:5672//
+      #      - RESULT_BACKEND=redis://redis:6379/0
       - C_FORCE_ROOT=true
     volumes:
       - .:/app/
@@ -30,17 +34,17 @@ services:
 
 
   rabbitmq:
-      image: rabbitmq:3-management-alpine
-      hostname: rabbit
-      container_name: 'rabbitmq'
-      ports:
-        - "5672:5672"
-        - "15672:15672"
-      environment:
-        - RABBITMQ_DEFAULT_USER=admin
-        - RABBITMQ_DEFAULT_PASS=mypass
-      volumes:
-        - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
-        - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    image: rabbitmq:3-management-alpine
+    hostname: rabbit
+    container_name: 'rabbitmq'
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=mypass
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
 
 

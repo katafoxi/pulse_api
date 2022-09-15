@@ -107,11 +107,9 @@ def get_rabbitmq_queue_length(queue: str) -> int:
 
 def get_post(post_id: int):
     if type(post_id) == int:
-        original_queue = get_rabbitmq_queue_length('original')
-        mirror_queue = get_rabbitmq_queue_length('mirror')
-        if original_queue > mirror_queue:
-            return get_post_mirror_api.apply_async(queue='mirror', args=[post_id]).get()
+        if get_rabbitmq_queue_length('original') >= get_rabbitmq_queue_length('mirror'):
+            return get_post_mirror_api.apply_async(queue='mirror', kwargs={'post_id': post_id}).get()
         else:
-            return get_post_original_api.apply_async(queue='original', args=[post_id]).get()
+            return get_post_original_api.apply_async(queue='original', kwargs={'post_id': post_id}).get()
     else:
         return 'Uncorrect post_id number'
